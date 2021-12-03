@@ -6,14 +6,38 @@ generator client {
 }
 
 datasource db {
-  provider  = "sqlite"
+  provider = "sqlite"
   // url      = env("DATABASE_URL")
-  url       = "file:./dev.db" 
+  url      = "file:./dev.db"
 }
 
 model Test {
-  id        Int       @id @default(autoincrement())
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt @default(now())
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
   name      String
+}
+
+model Submission {
+  id          Int       @id @default(autoincrement())
+  createdAt   DateTime  @default(now())
+  submitter   Submitter @relation(fields: [submitterId], references: [id])
+  location    Location  @relation(fields: [locationId], references: [id])
+  locationId  Int
+  submitterId Int
+}
+
+model Submitter {
+  id         Int          @id @default(autoincrement())
+  createdAt  DateTime     @default(now())
+  name       String
+  telegramId String
+  Submission Submission[]
+}
+
+model Location {
+  id         Int          @id @default(autoincrement())
+  latitude   Float
+  longitude  Float
+  Submission Submission[]
 }
