@@ -1,0 +1,36 @@
+{
+  "name": "invictus-sticker-bot",
+  "version": "1.0.0",
+  "description": "Leipe sticker bot",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "ts-node-dev index.ts",
+    "start": "ts-node index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ODDInvictus/StickerBot.git"
+  },
+  "author": "Nierot",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/ODDInvictus/StickerBot/issues"
+  },
+  "homepage": "https://github.com/ODDInvictus/StickerBot#readme",
+  "devDependencies": {
+    "@types/axios": "^0.14.0",
+    "@types/telebot": "^1.2.4",
+    "prisma": "^3.6.0",
+    "ts-node": "^10.4.0",
+    "ts-node-dev": "^1.1.8",
+    "typescript": "^4.5.2"
+  },
+  "dependencies": {
+    "@prisma/client": "^3.6.0",
+    "@types/node": "^16.11.11",
+    "axios": "^0.24.0",
+    "dotenv": "^10.0.0",
+    "telebot": "^1.4.1"
+  }
+}
