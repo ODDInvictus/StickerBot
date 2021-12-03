@@ -2,7 +2,8 @@ import TeleBot from 'telebot'
 import dotenv from 'dotenv'
 import { PrismaClient } from '@prisma/client'
 import fs from 'fs'
-import { sign } from 'crypto'
+
+dotenv.config()
 
 const axios = require('axios').default
 const prisma = new PrismaClient()
@@ -11,8 +12,6 @@ const bot = new TeleBot({
 })
 
 const main = async () => {
-
-    dotenv.config()
 
     const test = await prisma.test.findMany()
 
@@ -46,7 +45,7 @@ const main = async () => {
     })
 
     bot.on('location', msg => {
-        
+        console.log('Location received: ' + msg.location.latitude + ' ' + msg.location.longitude)
     })
 
     /**
