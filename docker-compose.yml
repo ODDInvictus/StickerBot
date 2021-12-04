@@ -1,0 +1,23 @@
+# docker-compose.yml
+version: '3'
+services:
+  database:
+    image: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pw
+      POSTGRES_DB: db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docker/database:/var/lib/postgresql/data
+  bot:
+    profiles: ["bot"]
+    build: .
+    image: sticker-bot
+    environment:
+      DATABASE_URL: postgres://postgres:pw@localhost:5432/db
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docker/bot:/app/photos
