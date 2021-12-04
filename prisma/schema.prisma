@@ -10,34 +10,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Submission {
-  id          Int       @id @default(autoincrement())
-  createdAt   DateTime  @default(now())
-  submitter   Submitter @relation(fields: [submitterId], references: [id])
-  location    Location  @relation(fields: [locationId], references: [id])
-  photo       Photo     @relation(fields: [photoId], references: [id])
-  photoId     Int
-  locationId  Int
-  submitterId Int
-}
-
-model Photo {
-  id         Int          @id @default(autoincrement())
-  fileName   String       @unique
-  Submission Submission[]
+model AspirantSubmitter {
+  id   String @id
+  name String @unique
 }
 
 model Submitter {
   id         Int          @id @default(autoincrement())
   createdAt  DateTime     @default(now())
-  name       String
-  telegramId String
+  name       String       @unique
+  telegramId Int          @unique
   Submission Submission[]
 }
 
-model Location {
-  id         Int          @id @default(autoincrement())
-  latitude   Float
-  longitude  Float
-  Submission Submission[]
+model Submission {
+  id            Int       @id @default(autoincrement())
+  createdAt     DateTime  @default(now())
+  submitter     Submitter @relation(fields: [submitterId], references: [id])
+  submitterId   Int
+  photoFileName String
+  latitude      Float
+  longitude     Float
 }
