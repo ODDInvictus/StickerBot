@@ -24,6 +24,11 @@ Daarna kan je de bot opstarten met
 npm run dev
 ```
 
+Om in de database te kijken kan je prisma studio gebruiken
+```bash
+npx prisma studio
+```
+
 ## Production
 Deze bot 24/7 draaien is een fluitje van een cent, aangezien alles al in docker draait.
 Het enige waar je voor moet zorgen is een postgresql database, `entry.sh` zorgt ervoor dat de database in orde is. Als eerst bouw je de docker container:
