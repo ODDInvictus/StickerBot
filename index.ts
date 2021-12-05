@@ -52,8 +52,25 @@ const photoQueue: PhotoQueue = new Map<number, PhotoSubmission[]>()
 // Lijst met ingezonder locaties zonder fotos
 const locationQueue: LocationQueue = new Map<number, LocationSubmission[]>()
 
+// Gooi de queue leeg elke 10 minuten
+setInterval(() => {
+    photoQueue.forEach(submissions => {
+        submissions.forEach((submission, idx) => {
+            if (submission.created.getTime() + 1000 * 60 * 5 < new Date().getTime()) {
+                submissions.splice(idx, 1)
+            }
+        })
+    })
 
-// TODO queue leeggooien na 15 minuten
+    locationQueue.forEach(submissions => {
+        submissions.forEach((submission, idx) => {
+            if (submission.created.getTime() + 1000 * 60 * 5 < new Date().getTime()) {
+                submissions.splice(idx, 1)
+            }
+        })
+    })
+}, 1000 * 60 * 10)
+
 
 const main = async () => {
 
