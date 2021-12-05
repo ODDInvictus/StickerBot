@@ -3,7 +3,7 @@
 Leuke sticker bot voor de feuten
 
 ## Benodigdheden
-* NodeJS 17
+* NodeJS >= 17
 * Docker
 * Docker-Compose
 
@@ -39,7 +39,7 @@ docker build --tag invictus-bot -f Dockerfile-prod .
 ```
 Daarna kan je deze draaien met
 ```bash
-docker run -it invictus-bot -e TELEGRAM_TOKEN "telegram token" -e DATABASE_URL "database url" invictus-bot
+docker run -it invictus-bot -e TELEGRAM_TOKEN "telegram token" -e DATABASE_URL "database url" -e ADMIN "admin id" -e GEOCODER_KEY "geocoder api sleutel" invictus-bot
 ```
 
 ## Docker bestanden
