@@ -15,6 +15,7 @@ De bot heeft een aantal environment variables nodig om te kunnen draaien, deze z
 | DATABASE_URL | De postgresql connection string (in te stellen in docker-compose.yml) |
 | ADMIN | Telegram ID voor de gebruiker met admin rechten (vind je id met de /tid command) |
 | GEOCODER_KEY | API sleutel van LocationIQ, voor de geocoder |
+| PHOTO_PATH | Pad naar de map waar de fotos opgeslagen moet worden (bijv. ./photos) |
 
 ## Lokale ontwikkeling
 Om de bot lokaal te draaien start je eerst de database op met
@@ -39,7 +40,7 @@ docker build --tag invictus-bot -f Dockerfile-prod .
 ```
 Daarna kan je deze draaien met
 ```bash
-docker run -it invictus-bot -e TELEGRAM_TOKEN "telegram token" -e DATABASE_URL "database url" -e ADMIN "admin id" -e GEOCODER_KEY "geocoder api sleutel" invictus-bot
+docker run -it invictus-bot -e TELEGRAM_TOKEN "telegram token" -e DATABASE_URL "database url" -e ADMIN "admin id" -e GEOCODER_KEY "geocoder api sleutel" -e PHOTO_PATH "/pad/naar/foto/map" invictus-bot
 ```
 
 ## Docker bestanden
