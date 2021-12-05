@@ -13,6 +13,8 @@ De bot heeft een aantal environment variables nodig om te kunnen draaien, deze z
 |-----|-------|
 | TELEGRAM_TOKEN | Een Telegram API bot token |
 | DATABASE_URL | De postgresql connection string (in te stellen in docker-compose.yml) |
+| ADMIN | Telegram ID voor de gebruiker met admin rechten (vind je id met de /tid command) |
+| GEOCODER_KEY | API sleutel van LocationIQ, voor de geocoder |
 
 ## Lokale ontwikkeling
 Om de bot lokaal te draaien start je eerst de database op met
