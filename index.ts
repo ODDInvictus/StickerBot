@@ -71,7 +71,8 @@ const main = async () => {
     const adminKeyboard = bot.keyboard([
         ['/adduser', '/deluser', '/feuten'],
         ['/tid', '/online', '/submitters'],
-        ['/start', '/help',]
+        ['/start', '/help', '/stats'],
+        ['/willekeurig', '/stickers']
     ], { resize: true })
 
     
@@ -190,14 +191,19 @@ Regels:
         // TODO: implement
     })
 
-    bot.on(['/stickers'], msg => {
+    bot.on(['/stickers'], async msg => {
         // TODO: implement
-        // eigen stickers
-    })
+        if (!(await isSubmitter(msg.from.id))) 
+            return bot.sendMessage(msg.from.id, 'Sorry, je bent nog niet geregistreerd. Doe ff /start')
 
-    bot.on(['/stats'], msg => {
-        // TODO: implement
-        // cijfertjes
+        const submitter = await getSubmitter(msg.from.id)
+
+        const submissions = await prisma.submission.findMany({
+            where: {
+                submitterId: submitter!.id
+            }
+        })
+        bot.sendMessage(msg.from.id, 'Je hebt ' + submissions.length + ' stickers geplakt!')
     })
 
     /**
@@ -282,6 +288,25 @@ Regels:
             return aspirant.name + ': ' + aspirant.id
         }).join('\n')
         bot.sendMessage(msg.from.id, aspirantenString, { replyMarkup: adminKeyboard })
+    })
+
+    bot.on(['/stats'], async msg => {
+        const submitters = await prisma.submitter.findMany({})
+        if (submitters.length === 0) {
+            bot.sendMessage(msg.from.id, 'Er zijn nog geen submissions')
+            return
+        }
+        let text = ''
+        for (const submitter of submitters) {
+            const submissions = await prisma.submission.findMany({
+                where: {
+                    submitterId: submitter.id
+                }
+            })
+            text += submitter.name + ': ' + submissions.length + '\n'
+        }
+
+        bot.sendMessage(msg.from.id, text, { replyMarkup: adminKeyboard })
     })
 
     bot.start()
