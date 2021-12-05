@@ -19,14 +19,14 @@ const geocoder = NodeGeocoder({
     formatter: null
 })
 
-type PhotoQueue = Map<string, PhotoSubmission[]>
+type PhotoQueue = Map<number, PhotoSubmission[]>
 
 type PhotoSubmission = {
     fileName: string
     created: Date
 }
 
-type LocationQueue = Map<string, LocationSubmission[]>
+type LocationQueue = Map<number, LocationSubmission[]>
 
 type LocationSubmission = {
     latitude: number
@@ -39,27 +39,27 @@ type LocationSubmission = {
     created: Date
 }
 
+const MAX_STICKERS_PER_STREET = 2
+
 /**
  * Queues,
  * Objecten die inzendingen tijdelijk opslaan terwijl er wordt gewacht op meer informatie
  */
 
 // lijst met ingezonden fotos zonder locatie
-const photoQueue: PhotoQueue = new Map<string, PhotoSubmission[]>()
+const photoQueue: PhotoQueue = new Map<number, PhotoSubmission[]>()
 
 // Lijst met ingezonder locaties zonder fotos
-const locationQueue: LocationQueue = new Map<string, LocationSubmission[]>()
+const locationQueue: LocationQueue = new Map<number, LocationSubmission[]>()
 
+
+// TODO queue leeggooien na 15 minuten
 
 const main = async () => {
 
-    const test = await prisma.submission.findMany({})
-
     const COMMANDS = ['/start', '/help', '/online', '/nieuw',
      '/adduser', '/tid', '/feuten', '/submitters', '/aspiranten', '/deluser', '/admin',
-    '/regels', '/geocode']
-
-    console.log(test)
+    '/regels', '/geocode', '/willekeurig', '/stickers', '/stats']
 
     /**
      * Buttons
@@ -84,11 +84,6 @@ const main = async () => {
             bot.sendMessage(msg.from.id, 'Wat probeer je te doen?', { replyMarkup: keyboard })
     })
 
-    bot.on(/\?(.*)/, msg => {
-        msg.reply.text(`Oof`)
-        console.log(msg)
-    })
-
     // Reageert op edits
     bot.on('edit', msg => msg.reply.text('Dat zag ik! Zo krijgen we nooit die VOC-mentaliteit terug :(', { asReply: true }))
 
@@ -96,10 +91,7 @@ const main = async () => {
     bot.on('photo',async msg => {
         console.log('Foto ontvangen van ' + msg.from.id)
 
-        console.log(locationQueue)
-        console.log(photoQueue)
-
-        if (await !isSubmitter(msg.from.id)) 
+        if (!(await isSubmitter(msg.from.id))) 
             return bot.sendMessage(msg.from.id, 'Sorry, je bent nog niet geregistreerd. Doe ff /start', { replyMarkup: keyboard })
 
         // Pak de benodige attributen
@@ -109,33 +101,9 @@ const main = async () => {
             // Download de foto
             .then(file => downloadPhoto(file.fileLink, file_unique_id + '.jpg'))
             .then(async () => {
-                msg.reply.text('Foto ontvangen! Stuur nu je huidige locatie om je inzending compleet te maken!')
-
-                // Nu checken we of er al een locatie in de queue staat
-                if (locationQueue.has(msg.from.id)) {
-                    const queue = locationQueue.get(msg.from.id)!
-                    if (queue.length > 0) {
-                        // Pak de locatie
-                        const { latitude, longitude, streetName, streetNumber, city, zipCode, country } = queue.pop()!
-                        // Pak de submitter uit de db
-                        const submitter = await getSubmitter(msg.from.id)
-
-                        await prisma.submission.create({
-                            data: {
-                                latitude, 
-                                longitude,
-                                streetName,
-                                streetNumber,
-                                submitterId: submitter!.id,
-                                city,
-                                zipCode,
-                                country,
-                                photoFileName: file_unique_id + '.jpg',
-                            }
-                        })
-                    }
-                }
-                queuePhoto(msg.from.id, file_unique_id + '.jpg')
+                msg.reply.text('Foto ontvangen')
+                    .then(() => queuePhoto(msg.from.id, file_unique_id + '.jpg'))
+                    .then(() => submit(msg.from.id))
             })
             .catch((err: any) => {
                 msg.reply.text('Slinkse onzin ontdekt: ' + err)
@@ -147,9 +115,9 @@ const main = async () => {
     // Locatie is gestuurd richting de bot
     bot.on('location', async msg => {
         console.log('Location received: ' + msg.location.latitude + ' ' + msg.location.longitude)
-        queueLocation(msg.from.id, msg.location.latitude, msg.location.longitude)
-
-        msg.reply.text("TODO: Geocoden")
+        msg.reply.text('Locatie ontvangen')
+            .then(() => queueLocation(msg.from.id, msg.location.latitude, msg.location.longitude))
+            .then(() => submit(msg.from.id))
     })
 
     /**
@@ -179,7 +147,7 @@ const main = async () => {
                     .then(aspirant => newSubmitter(msg.from.id, aspirant!.name))
                     .then(() => bot.sendMessage(msg.from.id, `Welkom ${feut.name}! Je kan nu meedoen aan de sticker competitie!`))
                     .then(() => bot.sendMessage(msg.from.id, 'Een sticker opsturen is heel eenvoudig'))
-                    .then(() => bot.sendMessage(msg.from.id, 'Het enige wat je moet doen is /nieuw doen (of de knoppen onderaan gebruiken) en dan de instucties volgen'))
+                    .then(() => bot.sendMessage(msg.from.id, 'Het enige wat je moet doen is /nieuw uitvoeren en dan de instucties volgen'))
                     .then(() => bot.sendMessage(msg.from.id, 'Als er iets stuk is met de bot, stuur dan s.v.p. een berichtje met screenshot naar @Nierot', {replyMarkup: keyboard}))
             } else {
                 bot.sendMessage(msg.from.id, 'Deze code is niet gevonden, probeer het nog eens of stuur een screenshot naar @Nierot')
@@ -201,16 +169,36 @@ const main = async () => {
             bot.sendMessage(msg.from.id, `Mogelijke commands:`, { replyMarkup: adminKeyboard })
         } else {
             bot.sendMessage(msg.from.id, `
-                De Stickerplak competitie is heel simpel.
-                    1. Plak een sticker ergens waar jij vind dat het nodig is (en waar voldoet aan de regels)
-                    2. Klik op de /nieuw knop of typ het commando /nieuw
-                    3. Stuur een foto van de sticker
-                    4. Stuur je huidige locatie als bijlage
+De Stickerplak competitie is heel simpel.
+  1. Plak een sticker ergens waar jij vind dat het nodig is (en waar voldoet aan de regels)
+  2. Klik op de /nieuw knop
+  3. Stuur een foto van de sticker
+  4. Stuur je huidige locatie als bijlage
+Regels:
+  * Geen stickers op belangrijke gebouwen
+  * Geen stickers op de grond
+  * Geen stickers op andere stickers
+  * Geen stickers op belangrijke borden
+  * Maximaal 2 stickers per straat
             `, { replyMarkup: keyboard })
         }
     })
 
     bot.on(['/online'], msg => msg.reply.text('Ik ben online!'))
+
+    bot.on(['/willekeurig'], msg => {
+        // TODO: implement
+    })
+
+    bot.on(['/stickers'], msg => {
+        // TODO: implement
+        // eigen stickers
+    })
+
+    bot.on(['/stats'], msg => {
+        // TODO: implement
+        // cijfertjes
+    })
 
     /**
      * Admin commands
@@ -301,6 +289,78 @@ const main = async () => {
     return bot
 }
 
+// Submit de sticker
+const submit = async (telegramId: number) => {
+    if (!(await isSubmitter(telegramId))) 
+        return bot.sendMessage(telegramId, 'Sorry, je bent nog niet geregistreerd. Doe ff /start')
+
+    const locqueue = locationQueue.get(telegramId)!
+    const phqueue = photoQueue.get(telegramId)!
+
+    if (!locqueue || locqueue.length === 0) {
+        bot.sendMessage(telegramId, 'Stuur nu je locatie om deze submissie af te maken!')
+        return
+    } else if (!phqueue || phqueue.length === 0) {
+        bot.sendMessage(telegramId, 'Stuur nu je foto om deze submissie af te maken!')
+    } else {
+        // Pak de locatie
+        const { latitude, longitude, streetName, streetNumber, city, zipCode, country } = locqueue.pop()!
+        // Pak de foto
+        const { fileName } = phqueue.pop()!
+
+        if (!(await checkRules(telegramId, zipCode, country))) {
+            return
+        }
+
+        // Pak de submitter uit de db
+        const submitter = await getSubmitter(telegramId)
+
+        await prisma.submission.create({
+            data: {
+                latitude, 
+                longitude,
+                streetName,
+                streetNumber,
+                submitterId: submitter!.id,
+                city,
+                zipCode,
+                country,
+                photoFileName: fileName
+            }
+        }).then(() => {
+            bot.sendMessage(telegramId, 'Submissie succesvol ontvangen!')
+        })
+    }
+}
+
+const checkRules = async (telegramId: number, zipCode: string, country: string) => {
+    const other = await prisma.submission.findMany({
+        where: {
+            zipCode,
+            country
+        }
+    })
+
+    // Als er niks is gevonden, of als er minder dan MAX_STICKERS_PER_STREET stickers zijn geplakt in die straat, dan is priem
+    if (!other || other.length < MAX_STICKERS_PER_STREET) {
+        return true
+    } else {
+        console.log(other)
+        const submitter1 = await getSubmitterById(other[0].submitterId)
+        const submitter2 = await getSubmitterById(other[1].submitterId)
+
+        const name1 = submitter1!.name
+        const name2 = submitter2!.name
+
+        if (name1 === name2) {
+            bot.sendMessage(telegramId, `Helaas! ${name1} was eerder en heeft hier al ${MAX_STICKERS_PER_STREET} stickers geplakt.`)
+        } else {
+            bot.sendMessage(telegramId, `Helaas! ${name1} en ${name2} waren eerder en zij hebben hier al ${MAX_STICKERS_PER_STREET} stickers geplakt.`)
+        }
+        return false
+    }
+}
+
 // Checkt of de gebruiker admin is, false in het geval van admin, true in het geval van een feut
 const checkAdmin = (id: number): boolean => {
     if (id.toString() !== process.env.ADMIN) {
@@ -335,7 +395,6 @@ const newAspirantSubmitter = async (name: string, code: string) => {
             id: code
         }
     })
-    console.log(aspirantSubmitter)
 }
 
 // Check if the given user is a submitter
@@ -356,6 +415,14 @@ const getSubmitter = async (telegramId: number) => {
     })
 }
 
+const getSubmitterById = async (id: number) => {
+    return await prisma.submitter.findFirst({
+        where: {
+            id
+        }
+    })
+}
+
 const newSubmitter = async (telegramId: number, name: string) => {
     const submitter = await prisma.submitter.create({
         data: {
@@ -368,10 +435,9 @@ const newSubmitter = async (telegramId: number, name: string) => {
             name
         }
     })
-    console.log(submitter)
 }
 
-const queueLocation = async (userId: string, latitude: number, longitude: number) => {
+const queueLocation = async (userId: number, latitude: number, longitude: number) => {
     const geocoded = await geocode(latitude, longitude)
 
     const obj = {
@@ -387,13 +453,13 @@ const queueLocation = async (userId: string, latitude: number, longitude: number
 
     const queue = locationQueue.get(userId)
     if (queue) {
-        queue.push(obj)
+        locationQueue.get(userId)!.push(obj)
     } else {
         locationQueue.set(userId, [obj])
     }
 }
 
-const queuePhoto = async (userId: string, fileName: string) => {
+const queuePhoto = async (userId: number, fileName: string) => {
     const queue = photoQueue.get(userId)
     if (queue) {
         queue.push({
@@ -425,7 +491,6 @@ const downloadPhoto = async (link: string, fileName: string) => {
 
 const geocode = async (latitude: number, longitude: number) => {
     const res = await geocoder.reverse({ lat: latitude, lon: longitude })
-    console.log(res)
     return res[0]
 }
 
