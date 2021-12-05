@@ -59,13 +59,14 @@ const main = async () => {
 
     const COMMANDS = ['/start', '/help', '/online', '/nieuw',
      '/adduser', '/tid', '/feuten', '/submitters', '/aspiranten', '/deluser', '/admin',
-    '/regels', '/geocode', '/willekeurig', '/stickers', '/stats']
+    '/regels', '/geocode', '/willekeurig', '/stickers', '/stats', '/random']
 
     /**
      * Buttons
      */
      const keyboard = bot.keyboard([
         ['/nieuw', '/help', '/regels'],
+        ['/random', '/stickers']
     ], { resize: true })
 
     const adminKeyboard = bot.keyboard([
@@ -187,12 +188,25 @@ Regels:
 
     bot.on(['/online'], msg => msg.reply.text('Ik ben online!'))
 
-    bot.on(['/willekeurig'], msg => {
-        // TODO: implement
+    bot.on(['/willekeurig', '/random'], async msg => {
+        if (!(await isSubmitter(msg.from.id))) 
+            return bot.sendMessage(msg.from.id, 'Sorry, je bent nog niet geregistreerd. Doe ff /start')
+
+        const submitter = await getSubmitter(msg.from.id)
+
+        const submissions = await prisma.submission.findMany({
+            where: {
+                submitterId: submitter!.id
+            }
+        })
+
+        const random = submissions[Math.floor(Math.random() * submissions.length)]
+
+        bot.sendMessage(msg.from.id, `Je hebt deze sticker op ${random.createdAt.toUTCString()} geplakt op locatie: ${random.streetName} ${random.streetNumber} in ${random.city}, ${random.country}!`)
+        bot.sendPhoto(msg.from.id, process.env.PHOTO_PATH! + random.photoFileName)
     })
 
     bot.on(['/stickers'], async msg => {
-        // TODO: implement
         if (!(await isSubmitter(msg.from.id))) 
             return bot.sendMessage(msg.from.id, 'Sorry, je bent nog niet geregistreerd. Doe ff /start')
 
