@@ -51,7 +51,6 @@ const photoQueue: PhotoQueue = new Map<string, PhotoSubmission[]>()
 const locationQueue: LocationQueue = new Map<string, LocationSubmission[]>()
 
 
-
 const main = async () => {
 
     const test = await prisma.submission.findMany({})
@@ -97,6 +96,9 @@ const main = async () => {
     bot.on('photo',async msg => {
         console.log('Foto ontvangen van ' + msg.from.id)
 
+        console.log(locationQueue)
+        console.log(photoQueue)
+
         if (await !isSubmitter(msg.from.id)) 
             return bot.sendMessage(msg.from.id, 'Sorry, je bent nog niet geregistreerd. Doe ff /start', { replyMarkup: keyboard })
 
@@ -131,8 +133,6 @@ const main = async () => {
                                 photoFileName: file_unique_id + '.jpg',
                             }
                         })
-                        // TODO
-                        // locatie en foto in database pleuren en afhandelen
                     }
                 }
                 queuePhoto(msg.from.id, file_unique_id + '.jpg')
@@ -155,7 +155,11 @@ const main = async () => {
     /**
      * Commands
      */
-    bot.on(['/start'], msg => {
+    bot.on(['/start'], async msg => {
+        if (await isSubmitter(msg.from.id)) {
+            bot.sendMessage(msg.from.id, 'Je bent al geregistreerd!', { replyMarkup: keyboard })
+            return
+        }
         bot.sendMessage(msg.from.id, `
             Heyhoi, ik ben Jan Peter Balkenende en ik ben de O.D.D. Invictus bot! Wat is je feutencode? Als je deze nog niet hebt vraag het dan aan @Nierot
             `// @ts-expect-error
@@ -367,24 +371,6 @@ const newSubmitter = async (telegramId: number, name: string) => {
     console.log(submitter)
 }
 
-const storeSubmission = async (submitterId: number, photoFileName: string, latitude: number, longitude: number, 
-    streetName: string, streetNumber: string, zipCode: string, country: string, city: string) => {
-    const submission = await prisma.submission.create({
-        data: {
-            photoFileName,
-            streetName,
-            streetNumber,
-            zipCode,
-            country,
-            city,
-            latitude,
-            longitude,
-            submitterId
-        }
-    })
-    console.log(submission)
-}
-
 const queueLocation = async (userId: string, latitude: number, longitude: number) => {
     const geocoded = await geocode(latitude, longitude)
 
@@ -428,7 +414,7 @@ const downloadPhoto = async (link: string, fileName: string) => {
         url: link,
         responseType: 'stream'
     }).then((response: any) => {
-        response.data.pipe(fs.createWriteStream('photos/' + fileName))
+        response.data.pipe(fs.createWriteStream(process.env.PHOTO_PATH! + fileName))
         resolve()
     }).catch((err: any) => {
         console.error(err)
