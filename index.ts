@@ -189,20 +189,17 @@ Regels:
     bot.on(['/online'], msg => msg.reply.text('Ik ben online!'))
 
     bot.on(['/willekeurig', '/random'], async msg => {
-        if (!(await isSubmitter(msg.from.id))) 
-            return bot.sendMessage(msg.from.id, 'Sorry, je bent nog niet geregistreerd. Doe ff /start')
-
-        const submitter = await getSubmitter(msg.from.id)
-
-        const submissions = await prisma.submission.findMany({
-            where: {
-                submitterId: submitter!.id
-            }
-        })
+        const submissions = await prisma.submission.findMany({})
 
         const random = submissions[Math.floor(Math.random() * submissions.length)]
 
-        bot.sendMessage(msg.from.id, `Je hebt deze sticker op ${random.createdAt.toUTCString()} geplakt op locatie: ${random.streetName} ${random.streetNumber} in ${random.city}, ${random.country}!`)
+        const submitter = await prisma.submitter.findFirst({
+            where: {
+                id: random.submitterId
+            }
+        })
+
+        bot.sendMessage(msg.from.id, `Deze sticker is door ${submitter?.name} op ${random.createdAt.toUTCString()} geplakt op locatie: ${random.streetName} ${random.streetNumber} in ${random.city}, ${random.country}!`)
         bot.sendPhoto(msg.from.id, process.env.PHOTO_PATH! + random.photoFileName)
     })
 
