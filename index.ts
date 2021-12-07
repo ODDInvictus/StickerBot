@@ -31,11 +31,11 @@ type LocationQueue = Map<number, LocationSubmission[]>
 type LocationSubmission = {
     latitude: number
     longitude: number
-    streetName: string
-    streetNumber: string
-    city: string
-    zipCode: string
-    country: string
+    streetName?: string
+    streetNumber?: string
+    city?: string
+    zipCode?: string
+    country?: string
     created: Date
 }
 
