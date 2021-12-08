@@ -361,6 +361,12 @@ const submit = async (telegramId: number) => {
         // Pak de foto
         const { fileName } = phqueue.pop()!
 
+        if (!zipCode || !country) {
+            // Geen geldige locatie
+            bot.sendMessage(telegramId, 'Ik kan helaas niks vinden over deze locatie, dus wees ff niet in de middle of nowhere!')
+            return
+        }
+
         if (!(await checkRules(telegramId, zipCode, country))) {
             return
         }
@@ -374,7 +380,7 @@ const submit = async (telegramId: number) => {
                 longitude,
                 streetName,
                 streetNumber,
-                submitterId: submitter!.id,
+                submitter: {connect: {id: submitter!.id}},
                 city,
                 zipCode,
                 country,
@@ -496,11 +502,11 @@ const queueLocation = async (userId: number, latitude: number, longitude: number
     const obj = {
         latitude,
         longitude,
-        streetName: geocoded.streetName!,
-        streetNumber: geocoded.streetNumber!,
-        city: geocoded.city!,
-        country: geocoded.country!,
-        zipCode: geocoded.zipcode!,
+        streetName: geocoded.streetName,
+        streetNumber: geocoded.streetNumber,
+        city: geocoded.city,
+        country: geocoded.country,
+        zipCode: geocoded.zipcode,
         created: new Date()
     }
 

@@ -31,9 +31,9 @@ model Submission {
   photoFileName String
   latitude      Float
   longitude     Float
-  streetName    String
-  streetNumber  String
-  city          String
-  zipCode       String
-  country       String
+  streetName    String?
+  streetNumber  String?
+  city          String?
+  zipCode       String?
+  country       String?
 }
