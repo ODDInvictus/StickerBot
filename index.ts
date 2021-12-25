@@ -76,7 +76,7 @@ const main = async () => {
 
     const COMMANDS = ['/start', '/help', '/online', '/nieuw',
      '/adduser', '/tid', '/feuten', '/submitters', '/aspiranten', '/deluser', '/admin',
-    '/regels', '/geocode', '/willekeurig', '/stickers', '/stats', '/random']
+    '/regels', '/geocode', '/willekeurig', '/stickers', '/stats', '/random', '/test']
 
     /**
      * Buttons
@@ -90,7 +90,7 @@ const main = async () => {
         ['/adduser', '/deluser', '/feuten'],
         ['/tid', '/online', '/submitters'],
         ['/start', '/help', '/stats'],
-        ['/willekeurig', '/stickers']
+        ['/willekeurig', '/stickers', '/test']
     ], { resize: true })
 
     
@@ -137,6 +137,10 @@ const main = async () => {
         msg.reply.text('Locatie ontvangen')
             .then(() => queueLocation(msg.from.id, msg.location.latitude, msg.location.longitude))
             .then(() => submit(msg.from.id))
+            .catch((err: any) => {
+                console.error('Locatie is incorrect of er is iets anders misgegaan!')
+                console.error(err)
+            })
     })
 
     /**
@@ -243,6 +247,30 @@ Regels:
             return
 
         bot.sendMessage(msg.from.id, `Leuk keyboard`, { replyMarkup: adminKeyboard })
+    })
+
+    bot.on(['/test'], msg => {
+        if (checkAdmin(msg.from.id))
+            return
+
+        // @ts-expect-error
+        bot.sendMessage(msg.from.id, 'Stuur ff berichtje met <lat>:<long> om te testen', {ask: 'test.loc'})
+    })
+
+    bot.on('ask.test.loc', async msg => {
+        const loc = msg.text.split(':')
+        if (loc.length !== 2) {
+            bot.sendMessage(msg.from.id, 'Doe ff niet dom. Voorbeeld: 52.21939:6.89857')
+            return
+        }
+        bot.sendMessage(msg.from.id, `Lat: ${loc[0]} Long: ${loc[1]}`)
+        
+        try {
+            const geocoded = await geocode(loc[0], loc[1])
+            bot.sendMessage(msg.from.id, `${geocoded.streetName} ${geocoded.streetNumber} in ${geocoded.city}, ${geocoded.country}, ${geocoded.zipcode}`)
+        } catch (err) {
+            bot.sendMessage(msg.from.id, 'Ik kan helaas niks vinden over deze locatie, dus wees ff niet in de middle of nowhere!')
+        }
     })
 
     // Voeg een aspirant sticker plakker toe
@@ -361,13 +389,12 @@ const submit = async (telegramId: number) => {
         // Pak de foto
         const { fileName } = phqueue.pop()!
 
-        if (!zipCode || !country) {
-            // Geen geldige locatie
+        if (!country || !zipCode || !streetName || !streetNumber || !city) {
             bot.sendMessage(telegramId, 'Ik kan helaas niks vinden over deze locatie, dus wees ff niet in de middle of nowhere!')
             return
         }
 
-        if (!(await checkRules(telegramId, zipCode, country))) {
+        if (!(await checkRules(telegramId, zipCode!, country!))) {
             return
         }
 
@@ -496,27 +523,36 @@ const newSubmitter = async (telegramId: number, name: string) => {
     })
 }
 
-const queueLocation = async (userId: number, latitude: number, longitude: number) => {
-    const geocoded = await geocode(latitude, longitude)
-
-    const obj = {
-        latitude,
-        longitude,
-        streetName: geocoded.streetName,
-        streetNumber: geocoded.streetNumber,
-        city: geocoded.city,
-        country: geocoded.country,
-        zipCode: geocoded.zipcode,
-        created: new Date()
-    }
-
-    const queue = locationQueue.get(userId)
-    if (queue) {
-        locationQueue.get(userId)!.push(obj)
-    } else {
-        locationQueue.set(userId, [obj])
-    }
+const queueLocation = (userId: number, latitude: number, longitude: number) => {
+    return new Promise<void>(async (res, rej) => {
+        try {
+            const geocoded = await geocode(latitude, longitude)
+    
+            const obj = {
+                latitude,
+                longitude,
+                streetName: geocoded.streetName,
+                streetNumber: geocoded.streetNumber,
+                city: geocoded.city,
+                country: geocoded.country,
+                zipCode: geocoded.zipcode,
+                created: new Date()
+            }
+        
+            const queue = locationQueue.get(userId)
+            if (queue) {
+                locationQueue.get(userId)!.push(obj)
+            } else {
+                locationQueue.set(userId, [obj])
+            }
+            res()
+        } catch (err) {
+            bot.sendMessage(userId, 'Ik kan helaas niks vinden over deze locatie, dus wees ff niet in de middle of nowhere!')
+            rej(err)
+        }
+    })
 }
+
 
 const queuePhoto = async (userId: number, fileName: string) => {
     const queue = photoQueue.get(userId)
@@ -550,7 +586,17 @@ const downloadPhoto = async (link: string, fileName: string) => {
 
 const geocode = async (latitude: number, longitude: number) => {
     const res = await geocoder.reverse({ lat: latitude, lon: longitude })
-    return res[0]
+    const ans = res[0]
+
+    if (!ans) {
+        throw new Error('No geocode found')
+    } else if (!ans.streetNumber && !ans.streetName && !ans.city && !ans.country) {
+        throw new Error('Could not find location ' + ans)
+    } else if (!ans.zipcode && !ans.country) {
+        throw new Error('Could not find location ' + ans)
+    } else {
+        return res[0]
+    }
 }
 
 process.on('SIGTERM', async () => {
@@ -564,3 +610,5 @@ main()
     }).finally(async () => {
         await prisma.$disconnect()
     })
+
+// 52.134634 6.216747
